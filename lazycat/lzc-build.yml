@@ -1,0 +1,7 @@
+# Builds the candidate package without Docker: scripts/build-lpk.sh compiles
+# the static Go server and the Vite frontend into ./content, which becomes
+# content.tar. The official runtime image is pulled on the device.
+manifest: ./lzc-manifest.yml
+pkgout: ./dist
+icon: ./icon.png
+contentdir: ./content

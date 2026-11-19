@@ -1,0 +1,15 @@
+/web/node_modules/
+/web/dist/
+/data/
+/data-dev/
+/lazycat/content/
+/lazycat/dist/
+*.db
+*.db-shm
+*.db-wal
+
+# Internal working notes; kept locally, not published.
+/HANDOFF.md
+/NEXT-STEPS.md
+/RESEARCH.md
+/UI-PREVIEW.html

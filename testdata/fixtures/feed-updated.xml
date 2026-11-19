@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>潮汐测试台</title>
+    <link>http://127.0.0.1:8090/</link>
+    <description>可重复使用的本地测试节目。仅用于开发与验收，不属于正式资料库。</description>
+    <language>zh-CN</language>
+    <item>
+      <title>第 3 集：推荐算法如何改变好奇心</title>
+      <guid isPermaLink="false">fixture-episode-3</guid>
+      <pubDate>Wed, 19 Nov 2025 09:00:00 +0800</pubDate>
+      <link>http://127.0.0.1:8090/episode-3.html</link>
+      <description><![CDATA[
+        <p>当推荐越来越准，我们还会不会主动走弯路？</p>
+        <p>00:00 推荐带来的确定感</p>
+        <p>00:50 主动寻找意外</p>
+      ]]></description>
+      <enclosure url="http://127.0.0.1:8090/episode.wav" type="audio/wav" length="2880044"/>
+      <itunes:duration>00:02:30</itunes:duration>
+      <podcast:transcript url="http://127.0.0.1:8090/episode.srt" type="application/x-subrip" language="zh-CN"/>
+    </item>
+    <item>
+      <title>第 1 集：在噪声里听见方向</title>
+      <guid isPermaLink="false">fixture-episode-1</guid>
+      <pubDate>Tue, 18 Nov 2025 09:00:00 +0800</pubDate>
+      <link>http://127.0.0.1:8090/episode-1.html</link>
+      <description><![CDATA[
+        <p>这一集从一次失败的采访聊起：听不只是接收信息，也是给对方留下一段不急于总结的时间。</p>
+        <p>00:00 开场：为什么听</p>
+        <p>01:05 一次失败的采访</p>
+        <p>02:10 沉默不是对话的空白</p>
+      ]]></description>
+      <enclosure url="http://127.0.0.1:8090/episode.wav" type="audio/wav" length="2880044"/>
+      <itunes:duration>00:03:00</itunes:duration>
+      <podcast:transcript url="http://127.0.0.1:8090/episode.vtt" type="text/vtt" language="zh-CN"/>
+    </item>
+    <item>
+      <title>第 2 集：散步，一种不需要目的地的练习</title>
+      <guid isPermaLink="false">fixture-episode-2</guid>
+      <pubDate>Mon, 10 Nov 2025 09:00:00 +0800</pubDate>
+      <link>http://127.0.0.1:8090/episode-2.html</link>
+      <description>没有目的地的散步，如何改变我们看城市的方式。</description>
+      <enclosure url="http://127.0.0.1:8090/episode.wav" type="audio/wav" length="2880044"/>
+      <itunes:duration>90</itunes:duration>
+    </item>
+  </channel>
+</rss>

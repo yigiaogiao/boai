@@ -1,0 +1,57 @@
+application:
+  subdomain: boai
+  # Every user gets their own container: their library, progress, bookmarks,
+  # AI configuration and encrypted keys live in that user's /lzcapp/var. The
+  # gateway injects X-HC-User-ID; the server rejects API calls without it.
+  multi_instance: true
+  routes:
+    - /=http://boai:8080
+  # The Go server already sends no-cache for HTML and immutable assets. This
+  # extra rule covers the LazyCat WebView's heuristic cache after an upgrade;
+  # API responses, hashed assets and the health check stay untouched.
+  injects:
+    - id: revalidate-html
+      auth_required: false
+      on: response
+      when:
+        - /*
+      unless:
+        - /api
+        - /api*
+        - /assets*
+        - /healthz
+      do: |
+        ctx.headers.set("Cache-Control", "no-cache, must-revalidate");
+
+services:
+  boai:
+    # No image is built for this app: the official LazyCat runtime starts the
+    # static Go binary from content.tar at /lzcapp/pkg/content.
+    image: registry.lazycat.cloud/lzc/lzcapp:3.20.3
+    entrypoint: /lzcapp/pkg/content/boai
+    binds:
+      # SQLite, the generated AI secret and runtime state survive restarts and
+      # upgrades here. Uninstalling/reinstalling keeps the directory too.
+      - /lzcapp/var/boai:/data
+    environment:
+      - BOAI_ADDR=:8080
+      - BOAI_DATA_DIR=/data
+      - BOAI_WEB_DIR=/lzcapp/pkg/content/web
+      # The gateway strips client-supplied identity headers and sets its own.
+      # Missing identity is a 401, never a fallback to a shared user.
+      - BOAI_TRUST_USER_HEADER=true
+      - BOAI_USER_HEADER=X-HC-User-ID
+      # The default runtime may not ship a CA bundle; feeds and AI providers
+      # are reached over HTTPS.
+      - SSL_CERT_FILE=/lzcapp/pkg/content/ca-certificates.crt
+      # LazyCat's resolver rewrites public hostnames into the RFC 2544 range
+      # 198.18.0.0/15 and proxies the connection. Allow exactly that range for
+      # hostname requests on ports 80/443; private, loopback, link-local and
+      # literal-IP destinations stay blocked.
+      - BOAI_ALLOW_FAKE_IP_DNS=true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3

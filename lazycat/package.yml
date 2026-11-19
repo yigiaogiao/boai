@@ -1,0 +1,22 @@
+package: cloud.lazycat.app.boai
+version: 0.1.11
+name: BOAI
+description: A self-hosted podcast workspace with an inbox, resume listening, source transcripts, and optional bring-your-own-key AI summaries and transcription.
+author: yigiaogiao
+# LPK v2 needs lzcos 1.5.0. Nothing here uses a newer manifest feature.
+min_os_version: 1.5.0
+# The server pulls public RSS feeds and reaches Apple's public directory, so it
+# needs the internet. It does not read the netdisk; no document/media permission
+# is requested.
+permissions:
+  required:
+    - net.internet
+# Source is MIT-licensed; keep this field in sync with the repository LICENSE.
+license: MIT
+locales:
+  zh-CN:
+    name: BOAI 播客
+    description: 订阅、整理和收听播客：收件箱、播放与续听、来源逐字稿，以及可选的 BYOK 导读与云端转写。
+  en-US:
+    name: BOAI Podcast
+    description: Subscribe to podcasts, listen with resume and source transcripts, and optionally use your own AI key for summaries and cloud transcription.
