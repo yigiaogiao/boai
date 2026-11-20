@@ -280,12 +280,13 @@ export interface EpisodeDetail {
 export interface OPMLItemResult {
   title: string
   feed_url: string
-  status: 'added' | 'existing' | 'failed' | 'skipped'
+  status: 'added' | 'pending' | 'existing' | 'failed' | 'skipped'
   message?: string
 }
 
 export interface OPMLResult {
   added: number
+  pending: number
   existing: number
   failed: number
   skipped: number

@@ -6,6 +6,7 @@ import type {
   DiscoverEpisode,
   DiscoverShow,
   Feed,
+  OPMLItemResult,
   OPMLResult,
   Resolution,
 } from '../types'
@@ -35,6 +36,23 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : '操作失败，请稍后重试'
 }
 
+// Items needing the user's attention sort first: pending feeds were added but
+// have no episodes yet, followed by hard failures.
+function opmlRank(status: OPMLItemResult['status']): number {
+  switch (status) {
+    case 'pending':
+      return 3
+    case 'failed':
+      return 2
+    case 'added':
+      return 1
+    case 'existing':
+      return 0
+    default:
+      return -1
+  }
+}
+
 export function Discover(props: DiscoverProps) {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
@@ -53,9 +71,7 @@ export function Discover(props: DiscoverProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const linkMode = isLink(query)
   const opmlItems = opml
-    ? [...opml.items].sort(
-        (left, right) => Number(right.status === 'failed') - Number(left.status === 'failed'),
-      )
+    ? [...opml.items].sort((left, right) => opmlRank(right.status) - opmlRank(left.status))
     : []
 
   useEffect(() => {
@@ -304,7 +320,7 @@ export function Discover(props: DiscoverProps) {
       <section className="discover-opml">
         <div>
           <strong>从其他播客应用迁移</strong>
-          <p>导入 OPML 文件，已存在的订阅会自动跳过。</p>
+          <p>导入 OPML 文件，已存在的订阅会自动跳过；暂时无法获取内容的源也会先加入，稍后自动重试。</p>
         </div>
         <button
           type="button"
@@ -331,11 +347,13 @@ export function Discover(props: DiscoverProps) {
                   {item.title || item.feed_url} ·{' '}
                   {item.status === 'added'
                     ? '已添加'
-                    : item.status === 'existing'
-                      ? '已存在'
-                      : item.status === 'failed'
-                        ? '失败'
-                        : '跳过'}
+                    : item.status === 'pending'
+                      ? '已加入，等待重试'
+                      : item.status === 'existing'
+                        ? '已存在'
+                        : item.status === 'failed'
+                          ? '失败'
+                          : '跳过'}
                   {item.message ? ` · ${item.message}` : ''}
                 </li>
               ))}

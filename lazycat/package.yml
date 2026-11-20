@@ -1,5 +1,5 @@
 package: cloud.lazycat.app.boai
-version: 0.1.12
+version: 0.1.13
 name: BOAI
 description: A self-hosted podcast workspace with an inbox, resume listening, source transcripts, and optional bring-your-own-key AI summaries and transcription.
 author: yigiaogiao

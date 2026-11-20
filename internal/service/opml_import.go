@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"boai/internal/feed"
+	"boai/internal/store"
 )
 
 // OPMLItemResult reports one outline from an import.
@@ -22,10 +23,14 @@ type OPMLItemResult struct {
 	Message string `json:"message,omitempty"`
 }
 
-// OPMLResult summarizes an OPML import. Added counts only feeds whose
-// documents were fetched and parsed during this import.
+// OPMLResult summarizes an OPML import. Added counts feeds that were fetched
+// and parsed during this import. Pending counts feeds that were stored as
+// subscriptions even though their first fetch failed; the scheduler retries
+// them, so a blocked or temporarily unavailable source does not lose the
+// subscription the way a hard failure would.
 type OPMLResult struct {
 	Added    int              `json:"added"`
+	Pending  int              `json:"pending"`
 	Existing int              `json:"existing"`
 	Failed   int              `json:"failed"`
 	Skipped  int              `json:"skipped"`
@@ -68,6 +73,7 @@ func (s *Service) ImportOPML(ctx context.Context, owner string, data []byte) (OP
 	items := parsed.Items
 	outcomes := make([]OPMLItemResult, len(items))
 	prepared := make([]*opmlPrepared, len(items))
+	failures := make([]string, len(items))
 	limit := len(items)
 	if limit > maxOPMLItems {
 		limit = maxOPMLItems
@@ -108,14 +114,12 @@ func (s *Service) ImportOPML(ctx context.Context, owner string, data []byte) (OP
 					continue
 				}
 				if fetchErr != nil {
-					outcomes[index].Status = "failed"
-					outcomes[index].Message = fetchErr.Error()
+					failures[index] = fetchErr.Error()
 					continue
 				}
 				parsedFeed, parseErr := feed.Parse(fetched.body, fetched.finalURL)
 				if parseErr != nil {
-					outcomes[index].Status = "failed"
-					outcomes[index].Message = opmlParseFailure(fetched)
+					failures[index] = opmlParseFailure(fetched)
 					continue
 				}
 				prepared[index] = &opmlPrepared{parsed: parsedFeed, fetched: fetched}
@@ -151,12 +155,24 @@ enqueue:
 		stored[url] = true
 	}
 	for index := 0; index < limit; index++ {
-		if prepared[index] == nil {
+		if outcomes[index].Status != "" {
 			continue
 		}
 		if ctx.Err() != nil {
 			outcomes[index].Status = "skipped"
 			outcomes[index].Message = "导入已中断"
+			continue
+		}
+		if prepared[index] == nil {
+			// Other podcast apps keep every outline from an export even when
+			// the source cannot be reached right now. Storing the failed
+			// subscription with its last_error preserves the user's library
+			// and lets the scheduler retry it in the background instead of
+			// silently dropping a third of the import.
+			if failures[index] != "" {
+				s.storePendingOPMLFeed(ctx, owner, items[index].FeedURL, outcomes[index].Title,
+					failures[index], stored, &outcomes[index])
+			}
 			continue
 		}
 		item := prepared[index]
@@ -182,6 +198,8 @@ enqueue:
 		switch outcome.Status {
 		case "added":
 			result.Added++
+		case "pending":
+			result.Pending++
 		case "existing":
 			result.Existing++
 		case "failed":
@@ -192,6 +210,38 @@ enqueue:
 	}
 	result.Message = opmlMessage(result)
 	return result, nil
+}
+
+// storePendingOPMLFeed records a subscription whose first fetch failed. The
+// row is a normal feed, so the existing refresh scheduler and the library UI
+// treat it like any other subscription that is currently unreachable.
+func (s *Service) storePendingOPMLFeed(ctx context.Context, owner, rawURL, title, reason string,
+	stored map[string]bool, outcome *OPMLItemResult) {
+	canonical, err := feed.CanonicalURL(rawURL)
+	if err != nil {
+		outcome.Status = "failed"
+		outcome.Message = reason
+		return
+	}
+	if stored[canonical] {
+		outcome.Status = "existing"
+		outcome.Message = "已在资料库中"
+		return
+	}
+	if strings.TrimSpace(title) == "" {
+		title = canonical
+	}
+	feedID, _, err := s.store.UpsertFeed(ctx, owner, store.FeedInput{URL: canonical, Title: title})
+	if err != nil {
+		outcome.Status = "failed"
+		outcome.Message = "写入资料库失败"
+		return
+	}
+	_ = s.store.RecordFeedResult(ctx, owner, feedID, false, "", "",
+		s.now().Add(backoff(1, s.updateInterval)), reason)
+	stored[canonical] = true
+	outcome.Status = "pending"
+	outcome.Message = reason
 }
 
 var htmlTitlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
@@ -245,6 +295,9 @@ func htmlPageTitle(body []byte) string {
 
 func opmlMessage(result OPMLResult) string {
 	parts := []string{fmt.Sprintf("新增 %d 个订阅", result.Added)}
+	if result.Pending > 0 {
+		parts = append(parts, fmt.Sprintf("%d 个已加入但暂时无法获取内容，稍后自动重试", result.Pending))
+	}
 	if result.Existing > 0 {
 		parts = append(parts, fmt.Sprintf("%d 个已存在", result.Existing))
 	}
