@@ -52,6 +52,11 @@ export function Discover(props: DiscoverProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const linkMode = isLink(query)
+  const opmlItems = opml
+    ? [...opml.items].sort(
+        (left, right) => Number(right.status === 'failed') - Number(left.status === 'failed'),
+      )
+    : []
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -320,8 +325,8 @@ export function Discover(props: DiscoverProps) {
         {opml ? (
           <div className="discover-opml-result" role="status">
             <strong>{opml.message}</strong>
-            <ul>
-              {opml.items.slice(0, 8).map((item) => (
+            <ul className="discover-opml-items">
+              {opmlItems.map((item) => (
                 <li key={`${item.feed_url}-${item.status}`}>
                   {item.title || item.feed_url} ·{' '}
                   {item.status === 'added'

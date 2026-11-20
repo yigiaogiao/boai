@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"html"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +115,7 @@ func (s *Service) ImportOPML(ctx context.Context, owner string, data []byte) (OP
 				parsedFeed, parseErr := feed.Parse(fetched.body, fetched.finalURL)
 				if parseErr != nil {
 					outcomes[index].Status = "failed"
-					outcomes[index].Message = "不是可解析的 RSS／Atom 订阅源"
+					outcomes[index].Message = opmlParseFailure(fetched)
 					continue
 				}
 				prepared[index] = &opmlPrepared{parsed: parsedFeed, fetched: fetched}
@@ -191,13 +194,62 @@ enqueue:
 	return result, nil
 }
 
+var htmlTitlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+
+// opmlParseFailure separates "the URL returned an HTML access page" from a
+// genuinely malformed feed. Some hosts answer a blocked feed URL with a 200
+// HTML error page after a redirect, which would otherwise look like corrupt
+// RSS and hide the real reason from the import result.
+func opmlParseFailure(fetched fetchedFeed) string {
+	if !looksLikeHTML(fetched) {
+		return "不是可解析的 RSS／Atom 订阅源"
+	}
+	title := htmlPageTitle(fetched.body)
+	lower := strings.ToLower(title)
+	if strings.Contains(title, "403") || strings.Contains(lower, "forbidden") ||
+		strings.Contains(title, "无法访问") || strings.Contains(title, "拒绝访问") {
+		if title != "" {
+			return fmt.Sprintf("订阅源返回 403 访问页（%s），源站拒绝当前网络访问", title)
+		}
+		return "订阅源返回 403 访问页，源站拒绝当前网络访问"
+	}
+	if title != "" {
+		return fmt.Sprintf("订阅源返回网页而不是 RSS／Atom（%s）", title)
+	}
+	return "订阅源返回网页而不是 RSS／Atom"
+}
+
+func looksLikeHTML(fetched fetchedFeed) bool {
+	if fetched.contentType == "text/html" || fetched.contentType == "application/xhtml+xml" {
+		return true
+	}
+	head := bytes.ToLower(fetched.body)
+	if len(head) > 1024 {
+		head = head[:1024]
+	}
+	return bytes.Contains(head, []byte("<!doctype html")) || bytes.Contains(head, []byte("<html"))
+}
+
+func htmlPageTitle(body []byte) string {
+	match := htmlTitlePattern.FindSubmatch(body)
+	if len(match) < 2 {
+		return ""
+	}
+	title := strings.Join(strings.Fields(html.UnescapeString(string(match[1]))), " ")
+	runes := []rune(title)
+	if len(runes) > 80 {
+		title = string(runes[:80]) + "…"
+	}
+	return title
+}
+
 func opmlMessage(result OPMLResult) string {
-	parts := []string{fmt.Sprintf("已确认并添加 %d 个订阅", result.Added)}
+	parts := []string{fmt.Sprintf("新增 %d 个订阅", result.Added)}
 	if result.Existing > 0 {
 		parts = append(parts, fmt.Sprintf("%d 个已存在", result.Existing))
 	}
 	if result.Failed > 0 {
-		parts = append(parts, fmt.Sprintf("%d 个未能确认", result.Failed))
+		parts = append(parts, fmt.Sprintf("%d 个失败", result.Failed))
 	}
 	if result.Skipped > 0 {
 		parts = append(parts, fmt.Sprintf("%d 个跳过", result.Skipped))

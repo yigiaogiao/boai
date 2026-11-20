@@ -167,6 +167,8 @@ time { font-variant-numeric: tabular-nums; }
 .discover-opml p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
 .discover-opml-result { flex-basis: 100%; padding-top: 8px; border-top: 1px solid #e6e1f1; font-size: 12px; }
 .discover-opml-result ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+.discover-opml-items { max-height: 260px; overflow-y: auto; padding-right: 6px; }
+.discover-opml-items li { overflow-wrap: anywhere; }
 .discover-categories { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .discover-categories > span { color: var(--muted); font-size: 11px; }
 .discover-categories .chip { display: inline-flex; align-items: center; gap: 4px; }
@@ -486,6 +488,7 @@ dialog footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 
   .discover-episode { gap: 8px; }
   .discover-episode > button { min-height: 36px; }
   .discover-opml { padding: 14px; }
+  .discover-opml-items { max-height: 40vh; }
   .selection-cancel { min-height: 32px; }
   .selection-actions button { min-height: 32px; }
   .reader { display: none; }
